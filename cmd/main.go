@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"os"
-	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/joho/godotenv"
+	"github.com/rusabd/relay/api"
 	"github.com/rusabd/relay/pkg/db"
 )
 
@@ -17,19 +19,19 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
+	log := logrus.New()
+	log.Out = os.Stdout
+	log.SetFormatter(&logrus.TextFormatter{})
 
-	log.Printf("Connecting to MongoDB at %s", os.Getenv("MONGODB_URI"))
-
-	listener, err := db.NewMongoDBListener(ctx, os.Getenv("MONGODB_URI"))
+	db, err := db.NewMongoDBRelay(context.Background(), os.Getenv("MONGODB_URI"))
 	if err != nil {
-		log.Fatal("Error creating MongoDB listener:", err)
+		log.Fatal(err)
 	}
-	defer listener.Close()
+	defer db.Close()
 
-	err = listener.Listen()
+	err = api.SetupRouter(db)
 	if err != nil {
-		log.Fatal("Error listening to MongoDB changes:", err)
+		log.Fatal(err)
 	}
+
 }
